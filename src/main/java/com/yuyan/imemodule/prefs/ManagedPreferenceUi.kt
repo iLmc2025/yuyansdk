@@ -130,6 +130,27 @@ abstract class ManagedPreferenceUi<T : Preference>(
         }
     }
 
+    class EditTextString(
+        @StringRes
+        val title: Int,
+        key: String,
+        val defaultValue: String,
+        @StringRes
+        val dialogMessage: Int? = null,
+        enableUiOn: (() -> Boolean)? = null
+    ) : ManagedPreferenceUi<EditTextPreference>(key, enableUiOn) {
+        override fun createUi(context: Context) = EditTextPreference(context).apply {
+            key = this@EditTextString.key
+            isIconSpaceReserved = false
+            isSingleLineTitle = false
+            summaryProvider = EditTextPreference.SimpleSummaryProvider.getInstance()
+            setDefaultValue(this@EditTextString.defaultValue)
+            setTitle(this@EditTextString.title)
+            setDialogTitle(this@EditTextString.title)
+            this@EditTextString.dialogMessage?.let { setDialogMessage(it) }
+        }
+    }
+
     class TwinSeekBarInt(
         @StringRes
         val title: Int,

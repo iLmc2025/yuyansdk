@@ -113,6 +113,43 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val symbolPairInput = switch(
             R.string.symbol_pair_input, "symbol_pair_input_enable", true
         )
+
+        val titleAi = category(R.string.ai_assist_setting)
+
+        val aiAssistEnabled = switch(
+            R.string.ai_assist_enable, "ai_assist_enable", false,
+            R.string.ai_assist_enable_tips
+        )
+
+        val aiUseMock = switch(
+            R.string.ai_assist_use_mock, "ai_assist_use_mock", true
+        ) { aiAssistEnabled.getValue() }
+
+        val aiAutoOnSelect = switch(
+            R.string.ai_assist_auto_on_select, "ai_assist_auto_on_select", false
+        ) { aiAssistEnabled.getValue() }
+
+        val aiEndpoint = com.yuyan.imemodule.view.preference.ManagedPreference.PString(sharedPreferences, "ai_assist_endpoint", "")
+            .also { pref ->
+                pref.register()
+                com.yuyan.imemodule.prefs.ManagedPreferenceUi.EditTextString(
+                    R.string.ai_assist_endpoint,
+                    "ai_assist_endpoint",
+                    "",
+                    R.string.ai_assist_endpoint_hint
+                ) { aiAssistEnabled.getValue() && !aiUseMock.getValue() }.registerUi()
+            }
+
+        val aiApiKey = com.yuyan.imemodule.view.preference.ManagedPreference.PString(sharedPreferences, "ai_assist_api_key", "")
+            .also { pref ->
+                pref.register()
+                com.yuyan.imemodule.prefs.ManagedPreferenceUi.EditTextString(
+                    R.string.ai_assist_api_key,
+                    "ai_assist_api_key",
+                    "",
+                    R.string.ai_assist_api_key_hint
+                ) { aiAssistEnabled.getValue() && !aiUseMock.getValue() }.registerUi()
+            }
     }
 
     inner class KeyboardSetting : ManagedPreferenceCategory(R.string.setting_ime_keyboard, sharedPreferences) {

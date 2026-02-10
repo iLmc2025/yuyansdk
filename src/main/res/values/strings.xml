@@ -36,6 +36,16 @@
     <string name="emoji_input">候选词中显示Emoji表情</string>
     <string name="symbol_setting">符号输入</string>
     <string name="symbol_pair_input">成对符号自动匹配</string>
+
+    <string name="ai_assist_setting">AI写作</string>
+    <string name="ai_assist_enable">启用AI超会写</string>
+    <string name="ai_assist_enable_tips">开启后可通过长按回车触发AI续写（联网版）</string>
+    <string name="ai_assist_use_mock">使用本地Mock响应（调试）</string>
+    <string name="ai_assist_auto_on_select">候选上屏后自动续写</string>
+    <string name="ai_assist_endpoint">AI接口地址</string>
+    <string name="ai_assist_endpoint_hint">例如：https://your-gateway.example.com/complete</string>
+    <string name="ai_assist_api_key">AI接口密钥</string>
+    <string name="ai_assist_api_key_hint">留空则不附带Authorization头</string>
     <!-- Used by the toggle keys in soft keyboards. -->
     <string name="cancel">取消</string>
     <!--键盘设置条目-->

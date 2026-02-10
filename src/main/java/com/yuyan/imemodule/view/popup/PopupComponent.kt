@@ -88,6 +88,7 @@ class PopupComponent private constructor(){
                 if(distanceY < 0)  Pair(PopupMenuMode.Revertl,  "🔄 下滑还原") else Pair(PopupMenuMode.Clear,  "🔙 上滑清空")
             }
             InputModeSwitcherManager.USER_DEF_KEYCODE_CURSOR_DIRECTION_9 -> Pair(PopupMenuMode.Move,  "")
+            KeyEvent.KEYCODE_ENTER -> Pair(PopupMenuMode.AiAssist, "✨ AI续写")
             else ->  Pair(PopupMenuMode.Enter,  "↩️ 换行")
         }
         showingEntryUi?.setText("") ?: showPopup("", bounds)

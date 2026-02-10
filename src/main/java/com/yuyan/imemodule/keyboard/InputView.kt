@@ -25,6 +25,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.get
 import androidx.core.view.postDelayed
 import com.yuyan.imemodule.R
+import com.yuyan.imemodule.ai.AiTextService
 import com.yuyan.imemodule.application.CustomConstant
 import com.yuyan.imemodule.callback.CandidateViewListener
 import com.yuyan.imemodule.callback.IResponseKeyEvent
@@ -51,6 +52,8 @@ import com.yuyan.imemodule.utils.DevicesUtils
 import com.yuyan.imemodule.utils.InputMethodUtil
 import com.yuyan.imemodule.utils.KeyboardLoaderUtil
 import com.yuyan.imemodule.utils.StringUtils
+import com.yuyan.imemodule.utils.thread.ThreadPoolUtils
+import com.yuyan.imemodule.utils.toast
 import com.yuyan.imemodule.view.CandidatesBar
 import com.yuyan.imemodule.view.EditPhrasesView
 import com.yuyan.imemodule.view.FullDisplayKeyboardBar
@@ -383,6 +386,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
                 if(lastTest?.isNotEmpty() == true) commitText(lastTest)
             }
             PopupMenuMode.Enter ->  commitText("\n") // 长按回车键
+            PopupMenuMode.AiAssist -> triggerAiAssist()
             else -> {}
         }
         if(result.first == PopupMenuMode.Text && mImeState != ImeState.STATE_PREDICT) mImeState = ImeState.STATE_PREDICT
@@ -545,6 +549,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
                 (KeyboardManager.instance.currentContainer as? T9TextContainer)?.updateSymbolListView()
                 mImeState = ImeState.STATE_PREDICT
                 commitDecInfoText(choice)
+                maybeTriggerAiAssistAfterCommit(choice)
             } else {  // 不上屏，继续选择
                 if (!DecodingInfo.isFinish) {
                     if (InputModeSwitcherManager.isEnglish) setComposingText(DecodingInfo.composingStrForCommit)
@@ -838,4 +843,35 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
             }
         }
     }
+
+    private fun maybeTriggerAiAssistAfterCommit(choice: String) {
+        if (!getInstance().input.aiAssistEnabled.getValue()) return
+        if (!getInstance().input.aiAutoOnSelect.getValue()) return
+        if (choice.length < 2) return
+        triggerAiAssist(choice)
+    }
+
+    private fun triggerAiAssist(seedText: String = "") {
+        if (!getInstance().input.aiAssistEnabled.getValue()) {
+            context.toast("请先在设置中开启AI功能")
+            return
+        }
+        val textBefore = if (seedText.isNotBlank()) seedText else service.getTextBeforeCursor(200)
+        ThreadPoolUtils.execute(Runnable {
+            val result = AiTextService.get(context).complete(
+                AiTextService.CompletionRequest(
+                    textBeforeCursor = textBefore,
+                    instruction = "续写"
+                )
+            )
+            post {
+                if (result.ok && result.text.isNotBlank()) {
+                    commitText(result.text)
+                } else {
+                    context.toast(result.errorMessage ?: "AI请求失败")
+                }
+            }
+        })
+    }
+
 }
