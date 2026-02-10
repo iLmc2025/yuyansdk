@@ -144,6 +144,10 @@ class AiTextService private constructor() {
         return json.encodeToString(JsonObject.serializer(), payload)
     }
 
+    private fun buildSystemPrompt(modePrompt: String, role: AiAssistRole): String {
+        return "${role.systemPrompt}\n$modePrompt"
+    }
+
     private fun parseOpenAiResponse(raw: String): String? {
         return try {
             val root = json.parseToJsonElement(raw).jsonObject
