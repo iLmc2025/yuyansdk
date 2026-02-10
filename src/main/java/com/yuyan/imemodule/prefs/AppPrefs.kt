@@ -12,6 +12,7 @@ import com.yuyan.imemodule.application.CustomConstant
 import com.yuyan.imemodule.manager.InputModeSwitcherManager
 import com.yuyan.imemodule.prefs.behavior.ClipboardLayoutMode
 import com.yuyan.imemodule.prefs.behavior.AiAssistMode
+import com.yuyan.imemodule.prefs.behavior.AiAssistRole
 import com.yuyan.imemodule.prefs.behavior.DoublePinyinSchemaMode
 import com.yuyan.imemodule.prefs.behavior.FullDisplayCenterMode
 import com.yuyan.imemodule.prefs.behavior.FullDisplayKeyMode
@@ -141,6 +142,27 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
                 R.string.ai_assist_mode_polish,
                 R.string.ai_assist_mode_expand,
                 R.string.ai_assist_mode_formal,
+            )
+        ) { aiAssistEnabled.getValue() }
+
+        val aiAssistRole = list(
+            R.string.ai_assist_role,
+            "ai_assist_role",
+            AiAssistRole.Default,
+            AiAssistRole,
+            listOf(
+                AiAssistRole.Default,
+                AiAssistRole.HighEq,
+                AiAssistRole.LoveGuru,
+                AiAssistRole.Workplace,
+                AiAssistRole.SocialMedia,
+            ),
+            listOf(
+                R.string.ai_assist_role_default,
+                R.string.ai_assist_role_high_eq,
+                R.string.ai_assist_role_love_guru,
+                R.string.ai_assist_role_workplace,
+                R.string.ai_assist_role_social_media,
             )
         ) { aiAssistEnabled.getValue() }
 

@@ -47,6 +47,12 @@
     <string name="ai_assist_mode_polish">润色</string>
     <string name="ai_assist_mode_expand">扩写</string>
     <string name="ai_assist_mode_formal">正式化</string>
+    <string name="ai_assist_role">预设角色</string>
+    <string name="ai_assist_role_default">通用助手</string>
+    <string name="ai_assist_role_high_eq">高情商沟通</string>
+    <string name="ai_assist_role_love_guru">恋爱大师</string>
+    <string name="ai_assist_role_workplace">职场沟通</string>
+    <string name="ai_assist_role_social_media">社交达人文案</string>
     <string name="ai_assist_model">AI模型</string>
     <string name="ai_assist_model_hint">例如：gpt-4o-mini、qwen-plus 等</string>
     <string name="ai_assist_endpoint">AI接口地址</string>

@@ -1,6 +1,7 @@
 package com.yuyan.imemodule.ai
 
 import com.yuyan.imemodule.prefs.AppPrefs
+import com.yuyan.imemodule.prefs.behavior.AiAssistRole
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -61,6 +62,7 @@ class AiTextService private constructor() {
     }
 
     private fun mockComplete(request: CompletionRequest): CompletionResult {
+        val role = AppPrefs.getInstance().input.aiAssistRole.getValue()
         val source = request.textBeforeCursor.takeLast(80)
         val suffix = when (request.mode) {
             AssistMode.Continue -> "，这是续写示例。"
@@ -68,7 +70,7 @@ class AiTextService private constructor() {
             AssistMode.Expand -> "，补充一点细节后会更完整。"
             AssistMode.Formal -> "，烦请您知悉并处理，谢谢。"
         }
-        return CompletionResult(ok = true, text = source + suffix)
+        return CompletionResult(ok = true, text = "【${role.name}】" + source + suffix)
     }
 
     private fun httpComplete(request: CompletionRequest): CompletionResult {
@@ -80,7 +82,8 @@ class AiTextService private constructor() {
         if (endpoint.isBlank()) return CompletionResult(false, "", "AI接口地址为空")
 
         return try {
-            val requestBody = buildOpenAiRequestBody(request, model)
+            val role = prefs.aiAssistRole.getValue()
+            val requestBody = buildOpenAiRequestBody(request, model, role)
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 5000
@@ -118,7 +121,7 @@ class AiTextService private constructor() {
         return if (raw.endsWith("/chat/completions")) raw else raw.trimEnd('/') + "/v1/chat/completions"
     }
 
-    private fun buildOpenAiRequestBody(request: CompletionRequest, model: String): String {
+    private fun buildOpenAiRequestBody(request: CompletionRequest, model: String, role: AiAssistRole): String {
         val payload = buildJsonObject {
             put("model", model)
             put("temperature", JsonPrimitive(0.7))
@@ -127,7 +130,7 @@ class AiTextService private constructor() {
                 add(
                     buildJsonObject {
                         put("role", "system")
-                        put("content", request.mode.prompt)
+                        put("content", buildSystemPrompt(request.mode.prompt, role))
                     }
                 )
                 add(
