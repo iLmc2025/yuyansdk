@@ -42,6 +42,13 @@
     <string name="ai_assist_enable_tips">开启后可通过长按回车触发AI续写（联网版）</string>
     <string name="ai_assist_use_mock">使用本地Mock响应（调试）</string>
     <string name="ai_assist_auto_on_select">候选上屏后自动续写</string>
+    <string name="ai_assist_mode">AI处理模式</string>
+    <string name="ai_assist_mode_continue">续写</string>
+    <string name="ai_assist_mode_polish">润色</string>
+    <string name="ai_assist_mode_expand">扩写</string>
+    <string name="ai_assist_mode_formal">正式化</string>
+    <string name="ai_assist_model">AI模型</string>
+    <string name="ai_assist_model_hint">例如：gpt-4o-mini、qwen-plus 等</string>
     <string name="ai_assist_endpoint">AI接口地址</string>
     <string name="ai_assist_endpoint_hint">例如：https://your-gateway.example.com/complete</string>
     <string name="ai_assist_api_key">AI接口密钥</string>

@@ -11,6 +11,7 @@ import com.yuyan.imemodule.application.Launcher
 import com.yuyan.imemodule.application.CustomConstant
 import com.yuyan.imemodule.manager.InputModeSwitcherManager
 import com.yuyan.imemodule.prefs.behavior.ClipboardLayoutMode
+import com.yuyan.imemodule.prefs.behavior.AiAssistMode
 import com.yuyan.imemodule.prefs.behavior.DoublePinyinSchemaMode
 import com.yuyan.imemodule.prefs.behavior.FullDisplayCenterMode
 import com.yuyan.imemodule.prefs.behavior.FullDisplayKeyMode
@@ -128,6 +129,31 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val aiAutoOnSelect = switch(
             R.string.ai_assist_auto_on_select, "ai_assist_auto_on_select", false
         ) { aiAssistEnabled.getValue() }
+
+        val aiAssistMode = list(
+            R.string.ai_assist_mode,
+            "ai_assist_mode",
+            AiAssistMode.Continue,
+            AiAssistMode,
+            listOf(AiAssistMode.Continue, AiAssistMode.Polish, AiAssistMode.Expand, AiAssistMode.Formal),
+            listOf(
+                R.string.ai_assist_mode_continue,
+                R.string.ai_assist_mode_polish,
+                R.string.ai_assist_mode_expand,
+                R.string.ai_assist_mode_formal,
+            )
+        ) { aiAssistEnabled.getValue() }
+
+        val aiModel = com.yuyan.imemodule.view.preference.ManagedPreference.PString(sharedPreferences, "ai_assist_model", "gpt-4o-mini")
+            .also { pref ->
+                pref.register()
+                com.yuyan.imemodule.prefs.ManagedPreferenceUi.EditTextString(
+                    R.string.ai_assist_model,
+                    "ai_assist_model",
+                    "gpt-4o-mini",
+                    R.string.ai_assist_model_hint
+                ) { aiAssistEnabled.getValue() && !aiUseMock.getValue() }.registerUi()
+            }
 
         val aiEndpoint = com.yuyan.imemodule.view.preference.ManagedPreference.PString(sharedPreferences, "ai_assist_endpoint", "")
             .also { pref ->

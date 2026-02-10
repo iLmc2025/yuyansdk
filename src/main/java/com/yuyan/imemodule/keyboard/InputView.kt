@@ -549,7 +549,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
                 (KeyboardManager.instance.currentContainer as? T9TextContainer)?.updateSymbolListView()
                 mImeState = ImeState.STATE_PREDICT
                 commitDecInfoText(choice)
-                maybeTriggerAiAssistAfterCommit(choice)
+                maybeTriggerAiAssistAfterCommit()
             } else {  // 不上屏，继续选择
                 if (!DecodingInfo.isFinish) {
                     if (InputModeSwitcherManager.isEnglish) setComposingText(DecodingInfo.composingStrForCommit)
@@ -844,24 +844,24 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         }
     }
 
-    private fun maybeTriggerAiAssistAfterCommit(choice: String) {
+    private fun maybeTriggerAiAssistAfterCommit() {
         if (!getInstance().input.aiAssistEnabled.getValue()) return
         if (!getInstance().input.aiAutoOnSelect.getValue()) return
-        if (choice.length < 2) return
-        triggerAiAssist(choice)
+        triggerAiAssist()
     }
 
-    private fun triggerAiAssist(seedText: String = "") {
+    private fun triggerAiAssist() {
         if (!getInstance().input.aiAssistEnabled.getValue()) {
             context.toast("请先在设置中开启AI功能")
             return
         }
-        val textBefore = if (seedText.isNotBlank()) seedText else service.getTextBeforeCursor(200)
+        val textBefore = service.getTextBeforeCursor(200)
         ThreadPoolUtils.execute(Runnable {
-            val result = AiTextService.get(context).complete(
+            val mode = AiTextService.AssistMode.fromRaw(getInstance().input.aiAssistMode.getValue().name)
+            val result = AiTextService.get().complete(
                 AiTextService.CompletionRequest(
                     textBeforeCursor = textBefore,
-                    instruction = "续写"
+                    mode = mode
                 )
             )
             post {
