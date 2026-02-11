@@ -30,9 +30,20 @@ class AiAssistView(
         isCursorVisible = true
         isFocusable = false
         isFocusableInTouchMode = false
+        isClickable = true
+        isLongClickable = false
         minLines = 4
         setPadding(dp(12), dp(12), dp(12), dp(12))
         setHint(R.string.ai_panel_input_hint)
+        setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_UP -> {
+                    val end = text?.length ?: 0
+                    setSelection(end)
+                }
+            }
+            true
+        }
     }
 
     private val counter = TextView(context).apply {
@@ -50,7 +61,10 @@ class AiAssistView(
 
     private val editorPanel = LinearLayout(context).apply {
         orientation = VERTICAL
+        isClickable = true
+        isFocusable = true
         setPadding(dp(8), dp(8), dp(8), dp(8))
+        setOnTouchListener { _, _ -> true }
         addView(editorInput, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             bottomMargin = dp(6)
         })
@@ -68,6 +82,7 @@ class AiAssistView(
         orientation = VERTICAL
         isClickable = true
         isFocusable = true
+        setOnTouchListener { _, _ -> true }
 
         addView(editorPanel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
