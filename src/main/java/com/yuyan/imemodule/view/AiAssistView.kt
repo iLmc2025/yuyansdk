@@ -79,6 +79,8 @@ class AiAssistView(
 
     init {
         orientation = VERTICAL
+        isClickable = true
+        isFocusable = true
 
         addView(TextView(context).apply {
             setText(R.string.ai_assist_role)
@@ -111,6 +113,10 @@ class AiAssistView(
                     aiRole = role
                     updateRoleUi()
                 }
+                setOnTouchListener { v, event ->
+                    if (event.action == android.view.MotionEvent.ACTION_UP) v.performClick()
+                    true
+                }
             }
             roleTabs.add(tab)
             roleRow.addView(tab)
@@ -134,6 +140,10 @@ class AiAssistView(
                 text = context.getString(labelRes)
                 setPadding(dp(10), dp(8), dp(10), dp(8))
                 setOnClickListener { runAction(mode) }
+                setOnTouchListener { v, event ->
+                    if (event.action == android.view.MotionEvent.ACTION_UP) v.performClick()
+                    true
+                }
             })
         }
         addAction(R.string.ai_assist_mode_continue, AiTextService.AssistMode.Continue)
@@ -156,9 +166,7 @@ class AiAssistView(
         counter.text = "0/1000"
     }
 
-    fun handleAiAssistView() {
-        inputBar.requestFocus()
-    }
+    fun handleAiAssistView() {}
 
     fun setInitialText(text: String) {
         inputBar.setText(text)
@@ -168,12 +176,10 @@ class AiAssistView(
         editorInput.setText(inputBar.text?.toString().orEmpty())
         editorInput.setSelection(editorInput.text?.length ?: 0)
         editorPanel.visibility = View.VISIBLE
-        editorInput.requestFocus()
     }
 
     private fun closeEditorPanel() {
         editorPanel.visibility = View.GONE
-        inputBar.requestFocus()
     }
 
     private fun runAction(mode: AiTextService.AssistMode) {
@@ -193,19 +199,30 @@ class AiAssistView(
 
     fun sendKeyEvent(keyCode: Int) {
         val target = if (editorPanel.visibility == View.VISIBLE) editorInput else null
-        if (target == null) return
         when (keyCode) {
             KeyEvent.KEYCODE_DEL -> {
-                target.onKeyDown(keyCode, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-                target.onKeyUp(keyCode, KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                if (target != null) {
+                    target.onKeyDown(keyCode, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                    target.onKeyUp(keyCode, KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                } else {
+                    val old = inputBar.text?.toString().orEmpty()
+                    if (old.isNotEmpty()) inputBar.setText(old.dropLast(1))
+                }
             }
             KeyEvent.KEYCODE_ENTER -> {
-                inputBar.setText(editorInput.text.toString())
-                closeEditorPanel()
+                if (target != null) {
+                    inputBar.setText(editorInput.text.toString())
+                    closeEditorPanel()
+                } else {
+                    runAction(AiTextService.AssistMode.Continue)
+                }
             }
             else -> {
                 val unicodeChar: Char = KeyEvent(KeyEvent.ACTION_DOWN, keyCode).unicodeChar.toChar()
-                if (unicodeChar != Character.MIN_VALUE) target.commitText(unicodeChar.toString())
+                if (unicodeChar != Character.MIN_VALUE) {
+                    if (target != null) target.commitText(unicodeChar.toString())
+                    else inputBar.commitText(unicodeChar.toString())
+                }
             }
         }
     }
