@@ -146,7 +146,9 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
                 else InputModeSwitcherManager.USER_DEF_KEYCODE_TEXTEDIT_7)
         }
         SkbMenuMode.AiAssist -> {
-            inputView.triggerAiAssist()
+            KeyboardManager.instance.switchKeyboard(KeyboardManager.KeyboardType.ClipBoard)
+            (KeyboardManager.instance.currentContainer as? ClipBoardContainer)?.showClipBoardView(SkbMenuMode.AiAssist)
+            inputView.updateCandidateBar()
         }
         else ->{}
     }

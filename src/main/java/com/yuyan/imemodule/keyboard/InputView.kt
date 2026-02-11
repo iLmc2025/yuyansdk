@@ -44,6 +44,7 @@ import com.yuyan.imemodule.manager.InputModeSwitcherManager
 import com.yuyan.imemodule.prefs.AppPrefs.Companion.getInstance
 import com.yuyan.imemodule.prefs.behavior.KeyboardOneHandedMod
 import com.yuyan.imemodule.prefs.behavior.PopupMenuMode
+import com.yuyan.imemodule.prefs.behavior.AiAssistRole
 import com.yuyan.imemodule.prefs.behavior.SkbMenuMode
 import com.yuyan.imemodule.service.DecodingInfo
 import com.yuyan.imemodule.service.ImeService
@@ -850,18 +851,23 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         triggerAiAssist()
     }
 
-    fun triggerAiAssist() {
+    fun triggerAiAssist(
+        seedText: String? = null,
+        modeOverride: AiTextService.AssistMode? = null,
+        roleOverride: AiAssistRole? = null,
+    ) {
         if (!getInstance().input.aiAssistEnabled.getValue()) {
             context.toast("请先在设置中开启AI功能")
             return
         }
-        val textBefore = service.getTextBeforeCursor(200)
+        val textBefore = seedText ?: service.getTextBeforeCursor(200)
         ThreadPoolUtils.execute(Runnable {
-            val mode = AiTextService.AssistMode.fromRaw(getInstance().input.aiAssistMode.getValue().name)
+            val mode = modeOverride ?: AiTextService.AssistMode.fromRaw(getInstance().input.aiAssistMode.getValue().name)
             val result = AiTextService.get().complete(
                 AiTextService.CompletionRequest(
                     textBeforeCursor = textBefore,
-                    mode = mode
+                    mode = mode,
+                    role = roleOverride,
                 )
             )
             post {

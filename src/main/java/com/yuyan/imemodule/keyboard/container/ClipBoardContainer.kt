@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.yuyan.imemodule.R
 import com.yuyan.imemodule.adapter.ClipBoardAdapter
+import com.yuyan.imemodule.ai.AiTextService
 import com.yuyan.imemodule.application.CustomConstant
 import com.yuyan.imemodule.data.theme.ThemeManager.activeTheme
 import com.yuyan.imemodule.database.DataBaseKT
@@ -22,9 +23,11 @@ import com.yuyan.imemodule.libs.recyclerview.SwipeMenuItem
 import com.yuyan.imemodule.libs.recyclerview.SwipeRecyclerView
 import com.yuyan.imemodule.prefs.AppPrefs
 import com.yuyan.imemodule.prefs.behavior.ClipboardLayoutMode
+import com.yuyan.imemodule.prefs.behavior.AiAssistRole
 import com.yuyan.imemodule.prefs.behavior.PopupMenuMode
 import com.yuyan.imemodule.prefs.behavior.SkbMenuMode
 import com.yuyan.imemodule.singleton.EnvironmentSingleton
+import com.yuyan.imemodule.utils.toast
 import com.yuyan.imemodule.keyboard.InputView
 import com.yuyan.imemodule.keyboard.KeyboardManager
 import com.yuyan.imemodule.manager.layout.CustomGridLayoutManager
@@ -70,12 +73,17 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         CustomConstant.lockClipBoardEnable = false
         itemMode = item
         mRVSymbolsView.setHasFixedSize(true)
-        val copyContents : MutableList<Clipboard> =
-            if(itemMode == SkbMenuMode.ClipBoard) {
-                DataBaseKT.instance.clipboardDao().getAll().toMutableList()
-            } else {
-                DataBaseKT.instance.phraseDao().getAll().map { line -> Clipboard(line.content) }.toMutableList()
-            }
+        val copyContents : MutableList<Clipboard> = when(itemMode) {
+            SkbMenuMode.ClipBoard -> DataBaseKT.instance.clipboardDao().getAll().toMutableList()
+            SkbMenuMode.Phrases -> DataBaseKT.instance.phraseDao().getAll().map { line -> Clipboard(line.content) }.toMutableList()
+            SkbMenuMode.AiAssist -> mutableListOf(
+                Clipboard(context.getString(R.string.ai_panel_continue_current)),
+                Clipboard(context.getString(R.string.ai_panel_polish_clipboard)),
+                Clipboard(context.getString(R.string.ai_panel_high_eq_clipboard)),
+                Clipboard(context.getString(R.string.ai_panel_love_clipboard)),
+            )
+            else -> mutableListOf()
+        }
         val manager =  when (AppPrefs.getInstance().clipboard.clipboardLayoutCompact.getValue()){
             ClipboardLayoutMode.ListView ->  LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
             ClipboardLayoutMode.GridView -> CustomGridLayoutManager(context, 2)
@@ -99,10 +107,26 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         val adapter = ClipBoardAdapter(context, copyContents)
         mRVSymbolsView.setAdapter(null)
         mRVSymbolsView.setOnItemClickListener{ _: View?, position: Int ->
-            inputView.responseLongKeyEvent(Pair(PopupMenuMode.Text, copyContents[position].content))
-            if(!CustomConstant.lockClipBoardEnable)KeyboardManager.instance.switchKeyboard()
+            if(itemMode == SkbMenuMode.AiAssist) {
+                when(position) {
+                    0 -> inputView.triggerAiAssist()
+                    1 -> getLatestClipboardText()?.let {
+                        inputView.triggerAiAssist(it, AiTextService.AssistMode.Polish)
+                    } ?: context.toast(R.string.ai_panel_clipboard_empty)
+                    2 -> getLatestClipboardText()?.let {
+                        inputView.triggerAiAssist(it, AiTextService.AssistMode.Polish, AiAssistRole.HighEq)
+                    } ?: context.toast(R.string.ai_panel_clipboard_empty)
+                    3 -> getLatestClipboardText()?.let {
+                        inputView.triggerAiAssist(it, AiTextService.AssistMode.Polish, AiAssistRole.LoveGuru)
+                    } ?: context.toast(R.string.ai_panel_clipboard_empty)
+                }
+            } else {
+                inputView.responseLongKeyEvent(Pair(PopupMenuMode.Text, copyContents[position].content))
+                if(!CustomConstant.lockClipBoardEnable)KeyboardManager.instance.switchKeyboard()
+            }
         }
         mRVSymbolsView.setSwipeMenuCreator{ _: SwipeMenu, rightMenu: SwipeMenu, position: Int ->
+            if(itemMode == SkbMenuMode.AiAssist) return@setSwipeMenuCreator
             val topItem = SwipeMenuItem(mContext).apply {
                 setImage(if(itemMode == SkbMenuMode.ClipBoard) {
                     if(copyContents[position].isKeep == 1)R.drawable.ic_baseline_untop_circle_32 else R.drawable.ic_baseline_top_circle_32 }
@@ -118,6 +142,7 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         }
         mRVSymbolsView.setOnItemMenuClickListener { menuBridge: SwipeMenuBridge, position: Int ->
             menuBridge.closeMenu()
+            if(itemMode == SkbMenuMode.AiAssist) return@setOnItemMenuClickListener
             if(itemMode == SkbMenuMode.ClipBoard){
                 if(menuBridge.position == 0) {
                     val data: Clipboard = copyContents[position]
@@ -168,5 +193,9 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
     }
     fun getMenuMode():SkbMenuMode? {
        return itemMode
+    }
+
+    private fun getLatestClipboardText(): String? {
+        return DataBaseKT.instance.clipboardDao().getAll().firstOrNull()?.content?.takeIf { it.isNotBlank() }
     }
 }

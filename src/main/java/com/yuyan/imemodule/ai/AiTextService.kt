@@ -38,6 +38,7 @@ class AiTextService private constructor() {
     data class CompletionRequest(
         val textBeforeCursor: String,
         val mode: AssistMode,
+        val role: AiAssistRole? = null,
         val maxTokens: Int = 160,
     )
 
@@ -62,7 +63,7 @@ class AiTextService private constructor() {
     }
 
     private fun mockComplete(request: CompletionRequest): CompletionResult {
-        val role = AppPrefs.getInstance().input.aiAssistRole.getValue()
+        val role = request.role ?: AppPrefs.getInstance().input.aiAssistRole.getValue()
         val source = request.textBeforeCursor.takeLast(80)
         val suffix = when (request.mode) {
             AssistMode.Continue -> "，这是续写示例。"
@@ -82,7 +83,7 @@ class AiTextService private constructor() {
         if (endpoint.isBlank()) return CompletionResult(false, "", "AI接口地址为空")
 
         return try {
-            val role = prefs.aiAssistRole.getValue()
+            val role = request.role ?: prefs.aiAssistRole.getValue()
             val requestBody = buildOpenAiRequestBody(request, model, role)
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
