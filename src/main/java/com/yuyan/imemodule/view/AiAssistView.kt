@@ -24,17 +24,7 @@ class AiAssistView(
     private val onRun: (String, AiTextService.AssistMode, AiAssistRole) -> Unit,
 ) : LinearLayout(context) {
 
-    // 上方输入条：与二级输入框内容同步，用于保留“两个输入框”的交互样式
-    private val inputBar = ImeEditText(context).apply {
-        gravity = Gravity.CENTER_VERTICAL
-        isCursorVisible = false
-        isFocusable = false
-        isFocusableInTouchMode = false
-        setPadding(dp(12), dp(10), dp(12), dp(10))
-        setHint(R.string.ai_panel_input_bar_hint)
-    }
-
-    // 二级编辑框：作为 AI 处理的真实输入源
+    // 仅保留一个 AI 输入框：宿主 App 自身输入框 + 输入法 AI 输入框
     private val editorInput = ImeEditText(context).apply {
         gravity = Gravity.TOP
         isCursorVisible = true
@@ -54,7 +44,7 @@ class AiAssistView(
         gravity = Gravity.CENTER
         setPadding(dp(14), dp(8), dp(14), dp(8))
         setOnClickListener {
-            inputBar.setText(editorInput.text.toString())
+            runAction(AiTextService.AssistMode.Continue)
         }
     }
 
@@ -79,7 +69,6 @@ class AiAssistView(
         isClickable = true
         isFocusable = true
 
-        addView(inputBar, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         addView(editorPanel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
         addView(TextView(context).apply {
@@ -160,12 +149,8 @@ class AiAssistView(
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                val value = s?.toString().orEmpty()
-                val length = value.length
+                val length = s?.length ?: 0
                 counter.text = "$length/1000"
-                if (inputBar.text?.toString().orEmpty() != value) {
-                    inputBar.setText(value)
-                }
             }
         })
         counter.text = "0/1000"
@@ -176,7 +161,6 @@ class AiAssistView(
     }
 
     fun setInitialText(text: String) {
-        inputBar.setText(text)
         editorInput.setText(text)
         editorInput.setSelection(editorInput.text?.length ?: 0)
     }
@@ -220,12 +204,9 @@ class AiAssistView(
             shape = GradientDrawable.RECTANGLE
             cornerRadius = ThemeManager.prefs.keyRadius.getValue().toFloat()
         }
-        inputBar.background = inputBackground
         editorInput.background = inputBackground.constantState?.newDrawable()
         editorPanel.background = inputBackground.constantState?.newDrawable()
 
-        inputBar.setTextColor(keyTextColor)
-        inputBar.setHintTextColor(keyTextColor)
         editorInput.setTextColor(keyTextColor)
         editorInput.setHintTextColor(keyTextColor)
         counter.setTextColor(keyTextColor)
