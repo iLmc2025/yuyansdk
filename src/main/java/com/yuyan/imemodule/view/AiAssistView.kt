@@ -24,24 +24,25 @@ class AiAssistView(
     private val onRun: (String, AiTextService.AssistMode, AiAssistRole) -> Unit,
 ) : LinearLayout(context) {
 
-    private val input = ImeEditText(context).apply {
+    // 主页面的“输入条”，点击后打开二级编辑页
+    private val inputBar = ImeEditText(context).apply {
         gravity = Gravity.CENTER_VERTICAL
-        isCursorVisible = true
-        isFocusable = true
-        isFocusableInTouchMode = true
-        minLines = 2
-        setPadding(dp(10), dp(10), dp(10), dp(10))
-        setHint(R.string.ai_panel_input_hint)
+        isCursorVisible = false
+        isFocusable = false
+        isFocusableInTouchMode = false
+        setPadding(dp(12), dp(10), dp(12), dp(10))
+        setHint(R.string.ai_panel_input_bar_hint)
         setOnClickListener { openEditorPanel() }
     }
 
+    // 二级编辑页
     private val editorInput = ImeEditText(context).apply {
         gravity = Gravity.TOP
         isCursorVisible = true
         isFocusable = true
         isFocusableInTouchMode = true
         minLines = 4
-        setPadding(dp(10), dp(10), dp(10), dp(10))
+        setPadding(dp(12), dp(12), dp(12), dp(12))
         setHint(R.string.ai_panel_input_hint)
     }
 
@@ -52,10 +53,9 @@ class AiAssistView(
     private val editorDone = TextView(context).apply {
         setText(R.string.done)
         gravity = Gravity.CENTER
-        setPadding(dp(12), dp(6), dp(12), dp(6))
+        setPadding(dp(14), dp(8), dp(14), dp(8))
         setOnClickListener {
-            input.setText(editorInput.text.toString())
-            input.setSelection(input.text?.length ?: 0)
+            inputBar.setText(editorInput.text.toString())
             closeEditorPanel()
         }
     }
@@ -63,6 +63,7 @@ class AiAssistView(
     private val editorPanel = LinearLayout(context).apply {
         orientation = VERTICAL
         visibility = GONE
+        setPadding(dp(8), dp(8), dp(8), dp(8))
         addView(editorInput, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             bottomMargin = dp(6)
         })
@@ -79,19 +80,19 @@ class AiAssistView(
     init {
         orientation = VERTICAL
 
-        addView(input, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-        addView(editorPanel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-
         addView(TextView(context).apply {
             setText(R.string.ai_assist_role)
-            setPadding(dp(4), dp(8), dp(4), dp(4))
+            setPadding(dp(4), dp(6), dp(4), dp(4))
         }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
         val roleRow = LinearLayout(context).apply { orientation = HORIZONTAL }
         val roleTabs = mutableListOf<TextView>()
 
         fun updateRoleUi() {
-            roleTabs.forEach { tv -> tv.alpha = if (tv.tag == aiRole) 1f else 0.7f }
+            roleTabs.forEach { tv ->
+                val selected = tv.tag == aiRole
+                tv.alpha = if (selected) 1f else 0.7f
+            }
         }
 
         AiAssistRole.entries.forEach { role ->
@@ -117,11 +118,17 @@ class AiAssistView(
         updateRoleUi()
 
         addView(
-            HorizontalScrollView(context).apply { addView(roleRow) },
+            HorizontalScrollView(context).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(roleRow)
+            },
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
         )
 
-        val actionRow = LinearLayout(context).apply { orientation = HORIZONTAL }
+        val actionRow = LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            setPadding(0, dp(6), 0, dp(6))
+        }
         fun addAction(labelRes: Int, mode: AiTextService.AssistMode) {
             actionRow.addView(TextView(context).apply {
                 text = context.getString(labelRes)
@@ -135,6 +142,9 @@ class AiAssistView(
         addAction(R.string.ai_assist_mode_formal, AiTextService.AssistMode.Formal)
         addView(actionRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
+        addView(inputBar, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        addView(editorPanel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+
         editorInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -147,16 +157,15 @@ class AiAssistView(
     }
 
     fun handleAiAssistView() {
-        input.requestFocus()
+        inputBar.requestFocus()
     }
 
     fun setInitialText(text: String) {
-        input.setText(text)
-        input.setSelection(text.length)
+        inputBar.setText(text)
     }
 
     private fun openEditorPanel() {
-        editorInput.setText(input.text?.toString().orEmpty())
+        editorInput.setText(inputBar.text?.toString().orEmpty())
         editorInput.setSelection(editorInput.text?.length ?: 0)
         editorPanel.visibility = View.VISIBLE
         editorInput.requestFocus()
@@ -164,11 +173,11 @@ class AiAssistView(
 
     private fun closeEditorPanel() {
         editorPanel.visibility = View.GONE
-        input.requestFocus()
+        inputBar.requestFocus()
     }
 
     private fun runAction(mode: AiTextService.AssistMode) {
-        val text = input.text.toString().trim()
+        val text = inputBar.text.toString().trim()
         if (text.isBlank()) {
             context.toast(R.string.ai_panel_input_empty)
             return
@@ -177,20 +186,16 @@ class AiAssistView(
     }
 
     fun sendKeyEvent(keyCode: Int) {
-        val target = if (editorPanel.visibility == View.VISIBLE) editorInput else input
+        val target = if (editorPanel.visibility == View.VISIBLE) editorInput else null
+        if (target == null) return
         when (keyCode) {
             KeyEvent.KEYCODE_DEL -> {
                 target.onKeyDown(keyCode, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
                 target.onKeyUp(keyCode, KeyEvent(KeyEvent.ACTION_UP, keyCode))
             }
             KeyEvent.KEYCODE_ENTER -> {
-                if (editorPanel.visibility == View.VISIBLE) {
-                    input.setText(editorInput.text.toString())
-                    input.setSelection(input.text?.length ?: 0)
-                    closeEditorPanel()
-                } else {
-                    runAction(AiTextService.AssistMode.Continue)
-                }
+                inputBar.setText(editorInput.text.toString())
+                closeEditorPanel()
             }
             else -> {
                 val unicodeChar: Char = KeyEvent(KeyEvent.ACTION_DOWN, keyCode).unicodeChar.toChar()
@@ -207,13 +212,21 @@ class AiAssistView(
             shape = GradientDrawable.RECTANGLE
             cornerRadius = ThemeManager.prefs.keyRadius.getValue().toFloat()
         }
-        input.background = inputBackground
+        inputBar.background = inputBackground
         editorInput.background = inputBackground.constantState?.newDrawable()
-        input.setTextColor(keyTextColor)
-        input.setHintTextColor(keyTextColor)
+        editorPanel.background = inputBackground.constantState?.newDrawable()
+
+        inputBar.setTextColor(keyTextColor)
+        inputBar.setHintTextColor(keyTextColor)
         editorInput.setTextColor(keyTextColor)
         editorInput.setHintTextColor(keyTextColor)
         counter.setTextColor(keyTextColor)
         editorDone.setTextColor(keyTextColor)
+
+        // 同步角色与动作文字颜色
+        for (i in 0 until childCount) {
+            val child = getChildAt(i)
+            if (child is TextView) child.setTextColor(keyTextColor)
+        }
     }
 }

@@ -46,6 +46,7 @@
     <string name="ai_panel_love_clipboard">恋爱语气改写（剪贴板）</string>
     <string name="ai_panel_clipboard_empty">剪贴板为空，请先复制文本</string>
     <string name="ai_panel_input_hint">请输入想要改写或续写的内容</string>
+    <string name="ai_panel_input_bar_hint">输入内容，我来帮你润色表达</string>
     <string name="ai_panel_input_empty">请先输入内容</string>
     <string name="ai_assist_enable">启用AI超会写</string>
     <string name="ai_assist_enable_tips">开启后可通过长按回车触发AI续写（联网版）</string>
