@@ -276,7 +276,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         val backgrounde = ThemeManager.activeTheme.backgroundDrawable(ThemeManager.prefs.keyBorder.getValue())
         mSkbRoot.background = if(backgrounde is BitmapDrawable) backgrounde.bitmap.scale(EnvironmentSingleton.instance.skbWidth, EnvironmentSingleton.instance.inputAreaHeight).toDrawable(context.resources) else backgrounde
         mSkbCandidatesBarView.updateTheme(keyTextColor)
-        if(::mAiAssistLayout.isInitialized) mAiAssistLayout.updateTheme(ThemeManager.activeTheme)
+        mAiAssistLayout.updateTheme(ThemeManager.activeTheme)
         if(::mOnehandHoderLayout.isInitialized) {
             (mOnehandHoderLayout[0] as ImageButton).drawable?.setTint(keyTextColor)
             (mOnehandHoderLayout[1] as ImageButton).drawable?.setTint(keyTextColor)

@@ -27,7 +27,7 @@ class AiAssistView(
         isFocusable = true
         isFocusableInTouchMode = true
         minLines = 2
-        setPadding(dp(10))
+        setPadding(dp(10), dp(10), dp(10), dp(10))
         setHint(R.string.ai_panel_input_hint)
     }
 
