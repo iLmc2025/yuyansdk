@@ -7,6 +7,9 @@ import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -47,6 +50,7 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
     private val mRVSymbolsView: SwipeRecyclerView = SwipeRecyclerView(context)
     private var mTVLable: TextView? = null
     private var itemMode:SkbMenuMode? = null
+    private var aiRole: AiAssistRole = AppPrefs.getInstance().input.aiAssistRole.getValue()
 
     init {
         mPaint.textSize = dp(22f)
@@ -72,16 +76,22 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
     fun showClipBoardView(item: SkbMenuMode) {
         CustomConstant.lockClipBoardEnable = false
         itemMode = item
+
+        if(itemMode == SkbMenuMode.AiAssist) {
+            showAiAssistPanel()
+            return
+        }
+
+        val aiPanelParent = mAiAssistPanel?.parent
+        if (aiPanelParent != null) {
+            (aiPanelParent as ViewGroup).removeView(mAiAssistPanel)
+        }
+
+        mRVSymbolsView.visibility = VISIBLE
         mRVSymbolsView.setHasFixedSize(true)
         val copyContents : MutableList<Clipboard> = when(itemMode) {
             SkbMenuMode.ClipBoard -> DataBaseKT.instance.clipboardDao().getAll().toMutableList()
             SkbMenuMode.Phrases -> DataBaseKT.instance.phraseDao().getAll().map { line -> Clipboard(line.content) }.toMutableList()
-            SkbMenuMode.AiAssist -> mutableListOf(
-                Clipboard(context.getString(R.string.ai_panel_continue_current)),
-                Clipboard(context.getString(R.string.ai_panel_polish_clipboard)),
-                Clipboard(context.getString(R.string.ai_panel_high_eq_clipboard)),
-                Clipboard(context.getString(R.string.ai_panel_love_clipboard)),
-            )
             else -> mutableListOf()
         }
         val manager =  when (AppPrefs.getInstance().clipboard.clipboardLayoutCompact.getValue()){
@@ -107,26 +117,10 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         val adapter = ClipBoardAdapter(context, copyContents)
         mRVSymbolsView.setAdapter(null)
         mRVSymbolsView.setOnItemClickListener{ _: View?, position: Int ->
-            if(itemMode == SkbMenuMode.AiAssist) {
-                when(position) {
-                    0 -> inputView.triggerAiAssist()
-                    1 -> getLatestClipboardText()?.let {
-                        inputView.triggerAiAssist(it, AiTextService.AssistMode.Polish)
-                    } ?: context.toast(R.string.ai_panel_clipboard_empty)
-                    2 -> getLatestClipboardText()?.let {
-                        inputView.triggerAiAssist(it, AiTextService.AssistMode.Polish, AiAssistRole.HighEq)
-                    } ?: context.toast(R.string.ai_panel_clipboard_empty)
-                    3 -> getLatestClipboardText()?.let {
-                        inputView.triggerAiAssist(it, AiTextService.AssistMode.Polish, AiAssistRole.LoveGuru)
-                    } ?: context.toast(R.string.ai_panel_clipboard_empty)
-                }
-            } else {
-                inputView.responseLongKeyEvent(Pair(PopupMenuMode.Text, copyContents[position].content))
-                if(!CustomConstant.lockClipBoardEnable)KeyboardManager.instance.switchKeyboard()
-            }
+            inputView.responseLongKeyEvent(Pair(PopupMenuMode.Text, copyContents[position].content))
+            if(!CustomConstant.lockClipBoardEnable)KeyboardManager.instance.switchKeyboard()
         }
         mRVSymbolsView.setSwipeMenuCreator{ _: SwipeMenu, rightMenu: SwipeMenu, position: Int ->
-            if(itemMode == SkbMenuMode.AiAssist) return@setSwipeMenuCreator
             val topItem = SwipeMenuItem(mContext).apply {
                 setImage(if(itemMode == SkbMenuMode.ClipBoard) {
                     if(copyContents[position].isKeep == 1)R.drawable.ic_baseline_untop_circle_32 else R.drawable.ic_baseline_top_circle_32 }
@@ -142,7 +136,6 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
         }
         mRVSymbolsView.setOnItemMenuClickListener { menuBridge: SwipeMenuBridge, position: Int ->
             menuBridge.closeMenu()
-            if(itemMode == SkbMenuMode.AiAssist) return@setOnItemMenuClickListener
             if(itemMode == SkbMenuMode.ClipBoard){
                 if(menuBridge.position == 0) {
                     val data: Clipboard = copyContents[position]
@@ -193,6 +186,99 @@ class ClipBoardContainer(context: Context, inputView: InputView) : BaseContainer
     }
     fun getMenuMode():SkbMenuMode? {
        return itemMode
+    }
+
+
+    private var mAiAssistPanel: LinearLayout? = null
+
+    private fun showAiAssistPanel() {
+        mRVSymbolsView.visibility = GONE
+        val panelParent = mAiAssistPanel?.parent
+        if (panelParent != null) {
+            (panelParent as ViewGroup).removeView(mAiAssistPanel)
+        }
+
+        val input = EditText(context).apply {
+            hint = context.getString(R.string.ai_panel_input_hint)
+            setText(getLatestClipboardText().orEmpty())
+            setTextColor(activeTheme.keyTextColor)
+            setHintTextColor(activeTheme.keyTextColor)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setBackgroundColor(activeTheme.keyBackgroundColor)
+        }
+
+        val roleContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        val roleTabs = mutableListOf<TextView>()
+        fun updateRoleUi() {
+            roleTabs.forEach { tab ->
+                val selected = tab.tag == aiRole
+                tab.alpha = if (selected) 1f else 0.7f
+            }
+        }
+
+        AiAssistRole.entries.forEach { role ->
+            val titleRes = when (role) {
+                AiAssistRole.Default -> R.string.ai_assist_role_default
+                AiAssistRole.HighEq -> R.string.ai_assist_role_high_eq
+                AiAssistRole.LoveGuru -> R.string.ai_assist_role_love_guru
+                AiAssistRole.Workplace -> R.string.ai_assist_role_workplace
+                AiAssistRole.SocialMedia -> R.string.ai_assist_role_social_media
+            }
+            val tab = TextView(context).apply {
+                text = context.getString(titleRes)
+                tag = role
+                setPadding(dp(10), dp(6), dp(10), dp(6))
+                setTextColor(activeTheme.keyTextColor)
+                setOnClickListener {
+                    aiRole = role
+                    updateRoleUi()
+                }
+            }
+            roleTabs.add(tab)
+            roleContainer.addView(tab)
+        }
+        updateRoleUi()
+
+        val actionRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+
+        fun addAction(labelRes: Int, mode: AiTextService.AssistMode) {
+            actionRow.addView(TextView(context).apply {
+                text = context.getString(labelRes)
+                setTextColor(activeTheme.keyTextColor)
+                setPadding(dp(10), dp(8), dp(10), dp(8))
+                setOnClickListener {
+                    val text = input.text?.toString()?.trim().orEmpty()
+                    if (text.isBlank()) {
+                        context.toast(R.string.ai_panel_input_empty)
+                    } else {
+                        inputView.triggerAiAssist(text, mode, aiRole)
+                    }
+                }
+            })
+        }
+
+        addAction(R.string.ai_assist_mode_continue, AiTextService.AssistMode.Continue)
+        addAction(R.string.ai_assist_mode_polish, AiTextService.AssistMode.Polish)
+        addAction(R.string.ai_assist_mode_expand, AiTextService.AssistMode.Expand)
+        addAction(R.string.ai_assist_mode_formal, AiTextService.AssistMode.Formal)
+
+        mAiAssistPanel = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(input, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+            addView(TextView(context).apply {
+                text = context.getString(R.string.ai_assist_role)
+                setTextColor(activeTheme.keyTextColor)
+                setPadding(dp(4), dp(8), dp(4), dp(4))
+            })
+            addView(HorizontalScrollView(context).apply { addView(roleContainer) }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+            addView(actionRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        }
+        addView(mAiAssistPanel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
 
     private fun getLatestClipboardText(): String? {
