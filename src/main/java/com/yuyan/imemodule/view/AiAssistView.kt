@@ -6,7 +6,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.KeyEvent
-import android.view.View
+import android.view.MotionEvent
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -24,7 +24,7 @@ class AiAssistView(
     private val onRun: (String, AiTextService.AssistMode, AiAssistRole) -> Unit,
 ) : LinearLayout(context) {
 
-    // 主页面的“输入条”，点击后打开二级编辑页
+    // 上方输入条：与二级输入框内容同步，用于保留“两个输入框”的交互样式
     private val inputBar = ImeEditText(context).apply {
         gravity = Gravity.CENTER_VERTICAL
         isCursorVisible = false
@@ -32,15 +32,14 @@ class AiAssistView(
         isFocusableInTouchMode = false
         setPadding(dp(12), dp(10), dp(12), dp(10))
         setHint(R.string.ai_panel_input_bar_hint)
-        setOnClickListener { openEditorPanel() }
     }
 
-    // 二级编辑页
+    // 二级编辑框：作为 AI 处理的真实输入源
     private val editorInput = ImeEditText(context).apply {
         gravity = Gravity.TOP
         isCursorVisible = true
-        isFocusable = true
-        isFocusableInTouchMode = true
+        isFocusable = false
+        isFocusableInTouchMode = false
         minLines = 4
         setPadding(dp(12), dp(12), dp(12), dp(12))
         setHint(R.string.ai_panel_input_hint)
@@ -56,13 +55,11 @@ class AiAssistView(
         setPadding(dp(14), dp(8), dp(14), dp(8))
         setOnClickListener {
             inputBar.setText(editorInput.text.toString())
-            closeEditorPanel()
         }
     }
 
     private val editorPanel = LinearLayout(context).apply {
         orientation = VERTICAL
-        visibility = GONE
         setPadding(dp(8), dp(8), dp(8), dp(8))
         addView(editorInput, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
             bottomMargin = dp(6)
@@ -81,6 +78,9 @@ class AiAssistView(
         orientation = VERTICAL
         isClickable = true
         isFocusable = true
+
+        addView(inputBar, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        addView(editorPanel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
         addView(TextView(context).apply {
             setText(R.string.ai_assist_role)
@@ -114,7 +114,9 @@ class AiAssistView(
                     updateRoleUi()
                 }
                 setOnTouchListener { v, event ->
-                    if (event.action == android.view.MotionEvent.ACTION_UP) v.performClick()
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_UP -> v.performClick()
+                    }
                     true
                 }
             }
@@ -141,7 +143,9 @@ class AiAssistView(
                 setPadding(dp(10), dp(8), dp(10), dp(8))
                 setOnClickListener { runAction(mode) }
                 setOnTouchListener { v, event ->
-                    if (event.action == android.view.MotionEvent.ACTION_UP) v.performClick()
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_UP -> v.performClick()
+                    }
                     true
                 }
             })
@@ -152,38 +156,33 @@ class AiAssistView(
         addAction(R.string.ai_assist_mode_formal, AiTextService.AssistMode.Formal)
         addView(actionRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
-        addView(inputBar, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-        addView(editorPanel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-
         editorInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                val length = s?.length ?: 0
+                val value = s?.toString().orEmpty()
+                val length = value.length
                 counter.text = "$length/1000"
+                if (inputBar.text?.toString().orEmpty() != value) {
+                    inputBar.setText(value)
+                }
             }
         })
         counter.text = "0/1000"
     }
 
-    fun handleAiAssistView() {}
+    fun handleAiAssistView() {
+        // 保持二级编辑框常驻显示，不再走弹出/收起逻辑
+    }
 
     fun setInitialText(text: String) {
         inputBar.setText(text)
-    }
-
-    private fun openEditorPanel() {
-        editorInput.setText(inputBar.text?.toString().orEmpty())
+        editorInput.setText(text)
         editorInput.setSelection(editorInput.text?.length ?: 0)
-        editorPanel.visibility = View.VISIBLE
-    }
-
-    private fun closeEditorPanel() {
-        editorPanel.visibility = View.GONE
     }
 
     private fun runAction(mode: AiTextService.AssistMode) {
-        val text = inputBar.text.toString().trim()
+        val text = editorInput.text.toString().trim()
         if (text.isBlank()) {
             context.toast(R.string.ai_panel_input_empty)
             return
@@ -191,37 +190,23 @@ class AiAssistView(
         onRun(text, mode, aiRole)
     }
 
-
     fun commitText(text: String) {
-        val target = if (editorPanel.visibility == View.VISIBLE) editorInput else inputBar
-        target.commitText(text)
+        editorInput.commitText(text)
     }
 
     fun sendKeyEvent(keyCode: Int) {
-        val target = if (editorPanel.visibility == View.VISIBLE) editorInput else null
         when (keyCode) {
             KeyEvent.KEYCODE_DEL -> {
-                if (target != null) {
-                    target.onKeyDown(keyCode, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-                    target.onKeyUp(keyCode, KeyEvent(KeyEvent.ACTION_UP, keyCode))
-                } else {
-                    val old = inputBar.text?.toString().orEmpty()
-                    if (old.isNotEmpty()) inputBar.setText(old.dropLast(1))
-                }
+                editorInput.onKeyDown(keyCode, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                editorInput.onKeyUp(keyCode, KeyEvent(KeyEvent.ACTION_UP, keyCode))
             }
             KeyEvent.KEYCODE_ENTER -> {
-                if (target != null) {
-                    inputBar.setText(editorInput.text.toString())
-                    closeEditorPanel()
-                } else {
-                    runAction(AiTextService.AssistMode.Continue)
-                }
+                runAction(AiTextService.AssistMode.Continue)
             }
             else -> {
                 val unicodeChar: Char = KeyEvent(KeyEvent.ACTION_DOWN, keyCode).unicodeChar.toChar()
                 if (unicodeChar != Character.MIN_VALUE) {
-                    if (target != null) target.commitText(unicodeChar.toString())
-                    else inputBar.commitText(unicodeChar.toString())
+                    editorInput.commitText(unicodeChar.toString())
                 }
             }
         }
