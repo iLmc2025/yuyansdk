@@ -142,16 +142,21 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
             removeView(mAddPhrasesLayout)
         }
         if(isAiAssist){
+            if (mAiAssistLayout.id == View.NO_ID) {
+                mAiAssistLayout.id = View.generateViewId()
+            }
             if(mAiAssistLayout.parent == null) {
                 addView(mAiAssistLayout, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
-                    addRule(ABOVE, mSkbRoot.id)
+                    addRule(ALIGN_PARENT_TOP)
                     addRule(ALIGN_LEFT, mSkbRoot.id)
                 })
                 mAiAssistLayout.setInitialText(service.getTextBeforeCursor(200))
                 mAiAssistLayout.handleAiAssistView()
             }
+            updateSkbRootTopAnchor(mAiAssistLayout.id)
         } else {
             removeView(mAiAssistLayout)
+            updateSkbRootTopAnchor(View.NO_ID)
         }
         mSkbCandidatesBarView.initialize(mChoiceNotifier)
         val oneHandedModSwitch = getInstance().keyboardSetting.oneHandedModSwitch.getValue()
@@ -211,6 +216,21 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
             updateCandidateBar()
             (KeyboardManager.instance.currentContainer as? CandidatesContainer)?.showCandidatesView()
         }
+    }
+
+
+    private fun updateSkbRootTopAnchor(topViewId: Int) {
+        val lp = mSkbRoot.layoutParams as LayoutParams
+        lp.removeRule(ABOVE)
+        if (topViewId != View.NO_ID) {
+            lp.addRule(BELOW, topViewId)
+            lp.removeRule(ALIGN_PARENT_TOP)
+        } else {
+            lp.removeRule(BELOW)
+            lp.addRule(ALIGN_PARENT_TOP)
+        }
+        mSkbRoot.layoutParams = lp
+        requestLayout()
     }
 
     private var initialTouchX = 0f
