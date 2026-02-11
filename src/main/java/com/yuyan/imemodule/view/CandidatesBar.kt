@@ -59,6 +59,30 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
     private lateinit var candidatesData: LinearLayout //候选词视图
     private var activeCandNo:Int = 0
 
+    private val businessQuickMenus = listOf(
+        SkbMenuMode.Emojicon,
+        SkbMenuMode.Emoticon,
+        SkbMenuMode.ClipBoard,
+        SkbMenuMode.Phrases,
+        SkbMenuMode.TextEdit,
+        SkbMenuMode.AiAssist,
+    )
+
+    private val settingsMenus = setOf(
+        SkbMenuMode.Settings,
+        SkbMenuMode.Custom,
+        SkbMenuMode.Feedback,
+        SkbMenuMode.KeyboardHeight,
+        SkbMenuMode.DarkTheme,
+        SkbMenuMode.OneHanded,
+        SkbMenuMode.NumberRow,
+        SkbMenuMode.JianFan,
+        SkbMenuMode.Mnemonic,
+        SkbMenuMode.FloatKeyboard,
+        SkbMenuMode.SettingsMenu,
+        SkbMenuMode.Handwriting,
+    )
+
     fun initialize(cvListener: CandidateViewListener) {
         mCvListener = cvListener
         initMenuView()
@@ -264,16 +288,18 @@ class CandidatesBar(context: Context?, attrs: AttributeSet?) : RelativeLayout(co
         } else if (DecodingInfo.isCandidatesListEmpty) {
             mRightArrowBtn.drawable.setLevel(0)
             showViewVisibility(mCandidatesMenuContainer)
-            val mFunItems: MutableList<SkbFunItem> = mutableListOf()
+            val menuModes = LinkedHashSet<SkbMenuMode>()
+            businessQuickMenus.forEach { menuModes.add(it) }
+
             val barMenus = DataBaseKT.instance.skbFunDao().getALlBarMenu()
             for (item in barMenus) {
                 val skbMenuMode = SkbMenuMode.decode(item.name)
-                val skbFunItem = menuSkbFunsPreset[skbMenuMode]
-                if (skbFunItem != null) {
-                    mFunItems.add(skbFunItem)
+                if (skbMenuMode !in settingsMenus) {
+                    menuModes.add(skbMenuMode)
                 }
             }
-            mCandidatesMenuAdapter.items = mFunItems
+
+            mCandidatesMenuAdapter.items = menuModes.mapNotNull { menuSkbFunsPreset[it] }
         } else {
             if (DecodingInfo.candidateSize > DecodingInfo.activeCandidateBar) mRVCandidates.layoutManager?.scrollToPosition(DecodingInfo.activeCandidateBar)
             showViewVisibility(mCandidatesDataContainer)
