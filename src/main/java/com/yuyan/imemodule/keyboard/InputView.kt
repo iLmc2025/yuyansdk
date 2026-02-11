@@ -55,6 +55,7 @@ import com.yuyan.imemodule.utils.KeyboardLoaderUtil
 import com.yuyan.imemodule.utils.StringUtils
 import com.yuyan.imemodule.utils.thread.ThreadPoolUtils
 import com.yuyan.imemodule.utils.toast
+import com.yuyan.imemodule.view.AiAssistView
 import com.yuyan.imemodule.view.CandidatesBar
 import com.yuyan.imemodule.view.EditPhrasesView
 import com.yuyan.imemodule.view.FullDisplayKeyboardBar
@@ -80,6 +81,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
     private val clipboardItemTimeout = getInstance().clipboard.clipboardItemTimeout.getValue()
     private var chinesePrediction = true
     var isAddPhrases = false
+    var isAiAssist = false
     private var service: ImeService
     private var mImeState = ImeState.STATE_IDLE // 当前的输入法状态
     private var mChoiceNotifier = ChoiceNotifier()
@@ -89,6 +91,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
     private var mHoderLayoutRight: LinearLayout
     private lateinit var mOnehandHoderLayout: LinearLayout
     var mAddPhrasesLayout: EditPhrasesView
+    var mAiAssistLayout: AiAssistView
     private var mLlKeyboardBottomHolder: LinearLayout
     private var mInputKeyboardContainer: RelativeLayout
     private lateinit var mRightPaddingKey: ManagedPreference.PInt
@@ -108,6 +111,9 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         mHoderLayoutRight = mSkbRoot.findViewById(R.id.ll_skb_holder_layout_right)
         mInputKeyboardContainer = mSkbRoot.findViewById(R.id.ll_input_keyboard_container)
         mAddPhrasesLayout = EditPhrasesView(context)
+        mAiAssistLayout = AiAssistView(context) { text, mode, role ->
+            triggerAiAssist(text, mode, role)
+        }
         KeyboardManager.instance.setData(mSkbRoot.findViewById(R.id.skb_input_keyboard_view), this)
         mLlKeyboardBottomHolder =  mSkbRoot.findViewById(R.id.iv_keyboard_holder)
         val root = PopupComponent.get().root
@@ -134,6 +140,18 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
             }
         } else {
             removeView(mAddPhrasesLayout)
+        }
+        if(isAiAssist){
+            if(mAiAssistLayout.parent == null) {
+                addView(mAiAssistLayout, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                    addRule(ABOVE, mSkbRoot.id)
+                    addRule(ALIGN_LEFT, mSkbRoot.id)
+                })
+                mAiAssistLayout.setInitialText(service.getTextBeforeCursor(200))
+                mAiAssistLayout.handleAiAssistView()
+            }
+        } else {
+            removeView(mAiAssistLayout)
         }
         mSkbCandidatesBarView.initialize(mChoiceNotifier)
         val oneHandedModSwitch = getInstance().keyboardSetting.oneHandedModSwitch.getValue()
@@ -258,6 +276,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         val backgrounde = ThemeManager.activeTheme.backgroundDrawable(ThemeManager.prefs.keyBorder.getValue())
         mSkbRoot.background = if(backgrounde is BitmapDrawable) backgrounde.bitmap.scale(EnvironmentSingleton.instance.skbWidth, EnvironmentSingleton.instance.inputAreaHeight).toDrawable(context.resources) else backgrounde
         mSkbCandidatesBarView.updateTheme(keyTextColor)
+        if(::mAiAssistLayout.isInitialized) mAiAssistLayout.updateTheme(ThemeManager.activeTheme)
         if(::mOnehandHoderLayout.isInitialized) {
             (mOnehandHoderLayout[0] as ImageButton).drawable?.setTint(keyTextColor)
             (mOnehandHoderLayout[1] as ImageButton).drawable?.setTint(keyTextColor)
@@ -629,6 +648,10 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
     }
 
     fun onSettingsMenuClick(skbMenuMode: SkbMenuMode, extra:Phrase? = null) {
+        if (skbMenuMode != SkbMenuMode.AiAssist && isAiAssist) {
+            isAiAssist = false
+            initView(context)
+        }
         when (skbMenuMode) {
             SkbMenuMode.AddPhrases -> {
                 isAddPhrases = true
@@ -688,6 +711,8 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
                     onSettingsMenuClick(SkbMenuMode.Phrases)
                 }
             }
+        } else if(isAiAssist) {
+            mAiAssistLayout.sendKeyEvent(keyCode)
         } else if(keyCode == KeyEvent.KEYCODE_ENTER) {
             service.sendEnterKeyEvent()
         } else if(keyCode in KeyEvent.KEYCODE_DPAD_UP..KeyEvent.KEYCODE_DPAD_RIGHT) {
@@ -806,6 +831,10 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         if(isAddPhrases){
             isAddPhrases = false
             mAddPhrasesLayout.addPhrasesHandle()
+            initView(context)
+        }
+        if(isAiAssist){
+            isAiAssist = false
             initView(context)
         }
         KeyboardManager.instance.switchKeyboard()
