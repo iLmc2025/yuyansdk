@@ -850,7 +850,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         triggerAiAssist()
     }
 
-    private fun triggerAiAssist() {
+    fun triggerAiAssist() {
         if (!getInstance().input.aiAssistEnabled.getValue()) {
             context.toast("请先在设置中开启AI功能")
             return

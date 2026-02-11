@@ -38,6 +38,7 @@
     <string name="symbol_pair_input">成对符号自动匹配</string>
 
     <string name="ai_assist_setting">AI写作</string>
+    <string name="ai_assist_shortcut">AI帮写</string>
     <string name="ai_assist_enable">启用AI超会写</string>
     <string name="ai_assist_enable_tips">开启后可通过长按回车触发AI续写（联网版）</string>
     <string name="ai_assist_use_mock">使用本地Mock响应（调试）</string>
