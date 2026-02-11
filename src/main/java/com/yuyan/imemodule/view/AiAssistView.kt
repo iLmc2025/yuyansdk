@@ -185,6 +185,12 @@ class AiAssistView(
         onRun(text, mode, aiRole)
     }
 
+
+    fun commitText(text: String) {
+        val target = if (editorPanel.visibility == View.VISIBLE) editorInput else inputBar
+        target.commitText(text)
+    }
+
     fun sendKeyEvent(keyCode: Int) {
         val target = if (editorPanel.visibility == View.VISIBLE) editorInput else null
         if (target == null) return

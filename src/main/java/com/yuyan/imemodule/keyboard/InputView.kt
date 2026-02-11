@@ -727,7 +727,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
      * 向输入框提交预选词
      */
     private fun setComposingText(text: CharSequence) {
-        if(!isAddPhrases)service.setComposingText(text)
+        if(!isAddPhrases && !isAiAssist)service.setComposingText(text)
     }
 
     /**
@@ -735,6 +735,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
      */
     private fun commitText(text: String) {
         if(isAddPhrases) mAddPhrasesLayout.commitText(text)
+        else if(isAiAssist) mAiAssistLayout.commitText(text)
         else service.commitText(StringUtils.converted2FlowerTypeface(text))
     }
 
