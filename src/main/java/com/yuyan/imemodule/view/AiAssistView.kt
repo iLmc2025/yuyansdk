@@ -2,8 +2,11 @@ package com.yuyan.imemodule.view
 
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.View
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -29,6 +32,46 @@ class AiAssistView(
         minLines = 2
         setPadding(dp(10), dp(10), dp(10), dp(10))
         setHint(R.string.ai_panel_input_hint)
+        setOnClickListener { openEditorPanel() }
+    }
+
+    private val editorInput = ImeEditText(context).apply {
+        gravity = Gravity.TOP
+        isCursorVisible = true
+        isFocusable = true
+        isFocusableInTouchMode = true
+        minLines = 4
+        setPadding(dp(10), dp(10), dp(10), dp(10))
+        setHint(R.string.ai_panel_input_hint)
+    }
+
+    private val counter = TextView(context).apply {
+        gravity = Gravity.END
+    }
+
+    private val editorDone = TextView(context).apply {
+        setText(R.string.done)
+        gravity = Gravity.CENTER
+        setPadding(dp(12), dp(6), dp(12), dp(6))
+        setOnClickListener {
+            input.setText(editorInput.text.toString())
+            input.setSelection(input.text?.length ?: 0)
+            closeEditorPanel()
+        }
+    }
+
+    private val editorPanel = LinearLayout(context).apply {
+        orientation = VERTICAL
+        visibility = GONE
+        addView(editorInput, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+            bottomMargin = dp(6)
+        })
+        addView(LinearLayout(context).apply {
+            orientation = HORIZONTAL
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            addView(counter, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+            addView(editorDone, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+        })
     }
 
     private var aiRole: AiAssistRole = AiAssistRole.Default
@@ -37,6 +80,7 @@ class AiAssistView(
         orientation = VERTICAL
 
         addView(input, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        addView(editorPanel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
         addView(TextView(context).apply {
             setText(R.string.ai_assist_role)
@@ -72,7 +116,10 @@ class AiAssistView(
         }
         updateRoleUi()
 
-        addView(HorizontalScrollView(context).apply { addView(roleRow) }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+        addView(
+            HorizontalScrollView(context).apply { addView(roleRow) },
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+        )
 
         val actionRow = LinearLayout(context).apply { orientation = HORIZONTAL }
         fun addAction(labelRes: Int, mode: AiTextService.AssistMode) {
@@ -87,6 +134,16 @@ class AiAssistView(
         addAction(R.string.ai_assist_mode_expand, AiTextService.AssistMode.Expand)
         addAction(R.string.ai_assist_mode_formal, AiTextService.AssistMode.Formal)
         addView(actionRow, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+
+        editorInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val length = s?.length ?: 0
+                counter.text = "$length/1000"
+            }
+        })
+        counter.text = "0/1000"
     }
 
     fun handleAiAssistView() {
@@ -96,6 +153,18 @@ class AiAssistView(
     fun setInitialText(text: String) {
         input.setText(text)
         input.setSelection(text.length)
+    }
+
+    private fun openEditorPanel() {
+        editorInput.setText(input.text?.toString().orEmpty())
+        editorInput.setSelection(editorInput.text?.length ?: 0)
+        editorPanel.visibility = View.VISIBLE
+        editorInput.requestFocus()
+    }
+
+    private fun closeEditorPanel() {
+        editorPanel.visibility = View.GONE
+        input.requestFocus()
     }
 
     private fun runAction(mode: AiTextService.AssistMode) {
@@ -108,15 +177,24 @@ class AiAssistView(
     }
 
     fun sendKeyEvent(keyCode: Int) {
+        val target = if (editorPanel.visibility == View.VISIBLE) editorInput else input
         when (keyCode) {
             KeyEvent.KEYCODE_DEL -> {
-                input.onKeyDown(keyCode, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-                input.onKeyUp(keyCode, KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                target.onKeyDown(keyCode, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                target.onKeyUp(keyCode, KeyEvent(KeyEvent.ACTION_UP, keyCode))
             }
-            KeyEvent.KEYCODE_ENTER -> runAction(AiTextService.AssistMode.Continue)
+            KeyEvent.KEYCODE_ENTER -> {
+                if (editorPanel.visibility == View.VISIBLE) {
+                    input.setText(editorInput.text.toString())
+                    input.setSelection(input.text?.length ?: 0)
+                    closeEditorPanel()
+                } else {
+                    runAction(AiTextService.AssistMode.Continue)
+                }
+            }
             else -> {
                 val unicodeChar: Char = KeyEvent(KeyEvent.ACTION_DOWN, keyCode).unicodeChar.toChar()
-                if (unicodeChar != Character.MIN_VALUE) input.commitText(unicodeChar.toString())
+                if (unicodeChar != Character.MIN_VALUE) target.commitText(unicodeChar.toString())
             }
         }
     }
@@ -124,12 +202,18 @@ class AiAssistView(
     fun updateTheme(theme: Theme) {
         val keyTextColor = ThemeManager.activeTheme.keyTextColor
         setBackgroundColor(theme.barColor)
-        input.background = GradientDrawable().apply {
+        val inputBackground = GradientDrawable().apply {
             setColor(ThemeManager.activeTheme.keyBackgroundColor)
             shape = GradientDrawable.RECTANGLE
             cornerRadius = ThemeManager.prefs.keyRadius.getValue().toFloat()
         }
+        input.background = inputBackground
+        editorInput.background = inputBackground.constantState?.newDrawable()
         input.setTextColor(keyTextColor)
         input.setHintTextColor(keyTextColor)
+        editorInput.setTextColor(keyTextColor)
+        editorInput.setHintTextColor(keyTextColor)
+        counter.setTextColor(keyTextColor)
+        editorDone.setTextColor(keyTextColor)
     }
 }
