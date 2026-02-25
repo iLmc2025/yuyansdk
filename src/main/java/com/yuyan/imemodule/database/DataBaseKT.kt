@@ -96,6 +96,7 @@ abstract class DataBaseKT : RoomDatabase() {
                     SkbFun(name = SkbMenuMode.ClipBoard.name, isKeep = 1),
                     SkbFun(name = SkbMenuMode.Emojicon.name, isKeep = 1),
                     SkbFun(name = SkbMenuMode.TextEdit.name, isKeep = 1),
+                    SkbFun(name = SkbMenuMode.AiAssist.name, isKeep = 1),
                     SkbFun(name = SkbMenuMode.Emojicon.name, isKeep = 0, position = 0),
                     SkbFun(name = SkbMenuMode.SwitchKeyboard.name, isKeep = 0, position = 1),
                     SkbFun(name = SkbMenuMode.KeyboardHeight.name, isKeep = 0, position = 2),
@@ -112,8 +113,19 @@ abstract class DataBaseKT : RoomDatabase() {
                     SkbFun(name = SkbMenuMode.Custom.name, isKeep = 0, position = 13),
                     SkbFun(name = SkbMenuMode.Settings.name, isKeep = 0, position = 14),
                     SkbFun(name = SkbMenuMode.TextEdit.name, isKeep = 0, position = 15),
+                    SkbFun(name = SkbMenuMode.AiAssist.name, isKeep = 0, position = 16),
                 )
                 instance.skbFunDao().insertAll(skbFuns)
+            } else {
+                val allMenus = instance.skbFunDao().getAllMenu()
+                val hasAiInMenu = allMenus.any { it.name == SkbMenuMode.AiAssist.name }
+                if (!hasAiInMenu) {
+                    val nextPos = (allMenus.maxOfOrNull { it.position } ?: -1) + 1
+                    instance.skbFunDao().insert(SkbFun(name = SkbMenuMode.AiAssist.name, isKeep = 0, position = nextPos))
+                }
+                if (instance.skbFunDao().getBarMenu(SkbMenuMode.AiAssist.name) == null) {
+                    instance.skbFunDao().insert(SkbFun(name = SkbMenuMode.AiAssist.name, isKeep = 1))
+                }
             }
         }
     }

@@ -36,6 +36,39 @@
     <string name="emoji_input">候选词中显示Emoji表情</string>
     <string name="symbol_setting">符号输入</string>
     <string name="symbol_pair_input">成对符号自动匹配</string>
+
+    <string name="ai_assist_setting">AI写作</string>
+    <string name="ai_assist_shortcut">AI帮写</string>
+    <string name="ai_panel_title">AI工具</string>
+    <string name="ai_panel_continue_current">续写当前输入</string>
+    <string name="ai_panel_polish_clipboard">润色剪贴板最新内容</string>
+    <string name="ai_panel_high_eq_clipboard">高情商改写（剪贴板）</string>
+    <string name="ai_panel_love_clipboard">恋爱语气改写（剪贴板）</string>
+    <string name="ai_panel_clipboard_empty">剪贴板为空，请先复制文本</string>
+    <string name="ai_panel_input_hint">请输入想要改写或续写的内容</string>
+    <string name="ai_panel_input_bar_hint">输入内容，我来帮你润色表达</string>
+    <string name="ai_panel_input_empty">请先输入内容</string>
+    <string name="ai_assist_enable">启用AI超会写</string>
+    <string name="ai_assist_enable_tips">开启后可通过长按回车触发AI续写（联网版）</string>
+    <string name="ai_assist_use_mock">使用本地Mock响应（调试）</string>
+    <string name="ai_assist_auto_on_select">候选上屏后自动续写</string>
+    <string name="ai_assist_mode">AI处理模式</string>
+    <string name="ai_assist_mode_continue">续写</string>
+    <string name="ai_assist_mode_polish">润色</string>
+    <string name="ai_assist_mode_expand">扩写</string>
+    <string name="ai_assist_mode_formal">正式化</string>
+    <string name="ai_assist_role">预设角色</string>
+    <string name="ai_assist_role_default">通用助手</string>
+    <string name="ai_assist_role_high_eq">高情商沟通</string>
+    <string name="ai_assist_role_love_guru">恋爱大师</string>
+    <string name="ai_assist_role_workplace">职场沟通</string>
+    <string name="ai_assist_role_social_media">社交达人文案</string>
+    <string name="ai_assist_model">AI模型</string>
+    <string name="ai_assist_model_hint">例如：gpt-4o-mini、qwen-plus 等</string>
+    <string name="ai_assist_endpoint">AI接口地址</string>
+    <string name="ai_assist_endpoint_hint">例如：https://your-gateway.example.com/complete</string>
+    <string name="ai_assist_api_key">AI接口密钥</string>
+    <string name="ai_assist_api_key_hint">留空则不附带Authorization头</string>
     <!-- Used by the toggle keys in soft keyboards. -->
     <string name="cancel">取消</string>
     <!--键盘设置条目-->

@@ -4,6 +4,7 @@ import com.yuyan.imemodule.view.preference.ManagedPreference
 
 enum class PopupMenuMode {
     Text,
+    AiAssist,
     Clear,
     SwitchIME,
     EnglishCell,

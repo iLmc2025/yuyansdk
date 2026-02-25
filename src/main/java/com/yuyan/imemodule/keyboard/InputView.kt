@@ -25,6 +25,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.get
 import androidx.core.view.postDelayed
 import com.yuyan.imemodule.R
+import com.yuyan.imemodule.ai.AiTextService
 import com.yuyan.imemodule.application.CustomConstant
 import com.yuyan.imemodule.callback.CandidateViewListener
 import com.yuyan.imemodule.callback.IResponseKeyEvent
@@ -43,6 +44,7 @@ import com.yuyan.imemodule.manager.InputModeSwitcherManager
 import com.yuyan.imemodule.prefs.AppPrefs.Companion.getInstance
 import com.yuyan.imemodule.prefs.behavior.KeyboardOneHandedMod
 import com.yuyan.imemodule.prefs.behavior.PopupMenuMode
+import com.yuyan.imemodule.prefs.behavior.AiAssistRole
 import com.yuyan.imemodule.prefs.behavior.SkbMenuMode
 import com.yuyan.imemodule.service.DecodingInfo
 import com.yuyan.imemodule.service.ImeService
@@ -51,6 +53,9 @@ import com.yuyan.imemodule.utils.DevicesUtils
 import com.yuyan.imemodule.utils.InputMethodUtil
 import com.yuyan.imemodule.utils.KeyboardLoaderUtil
 import com.yuyan.imemodule.utils.StringUtils
+import com.yuyan.imemodule.utils.thread.ThreadPoolUtils
+import com.yuyan.imemodule.utils.toast
+import com.yuyan.imemodule.view.AiAssistView
 import com.yuyan.imemodule.view.CandidatesBar
 import com.yuyan.imemodule.view.EditPhrasesView
 import com.yuyan.imemodule.view.FullDisplayKeyboardBar
@@ -76,6 +81,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
     private val clipboardItemTimeout = getInstance().clipboard.clipboardItemTimeout.getValue()
     private var chinesePrediction = true
     var isAddPhrases = false
+    var isAiAssist = false
     private var service: ImeService
     private var mImeState = ImeState.STATE_IDLE // 当前的输入法状态
     private var mChoiceNotifier = ChoiceNotifier()
@@ -85,6 +91,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
     private var mHoderLayoutRight: LinearLayout
     private lateinit var mOnehandHoderLayout: LinearLayout
     var mAddPhrasesLayout: EditPhrasesView
+    var mAiAssistLayout: AiAssistView
     private var mLlKeyboardBottomHolder: LinearLayout
     private var mInputKeyboardContainer: RelativeLayout
     private lateinit var mRightPaddingKey: ManagedPreference.PInt
@@ -104,6 +111,9 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         mHoderLayoutRight = mSkbRoot.findViewById(R.id.ll_skb_holder_layout_right)
         mInputKeyboardContainer = mSkbRoot.findViewById(R.id.ll_input_keyboard_container)
         mAddPhrasesLayout = EditPhrasesView(context)
+        mAiAssistLayout = AiAssistView(context) { text, mode, role ->
+            triggerAiAssist(text, mode, role)
+        }
         KeyboardManager.instance.setData(mSkbRoot.findViewById(R.id.skb_input_keyboard_view), this)
         mLlKeyboardBottomHolder =  mSkbRoot.findViewById(R.id.iv_keyboard_holder)
         val root = PopupComponent.get().root
@@ -130,6 +140,23 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
             }
         } else {
             removeView(mAddPhrasesLayout)
+        }
+        if(isAiAssist){
+            if (mAiAssistLayout.id == View.NO_ID) {
+                mAiAssistLayout.id = View.generateViewId()
+            }
+            if(mAiAssistLayout.parent == null) {
+                addView(mAiAssistLayout, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                    addRule(ALIGN_PARENT_TOP)
+                    addRule(ALIGN_LEFT, mSkbRoot.id)
+                })
+                mAiAssistLayout.setInitialText(service.getTextBeforeCursor(200))
+                mAiAssistLayout.handleAiAssistView()
+            }
+            updateSkbRootTopAnchor(mAiAssistLayout.id)
+        } else {
+            removeView(mAiAssistLayout)
+            updateSkbRootTopAnchor(View.NO_ID)
         }
         mSkbCandidatesBarView.initialize(mChoiceNotifier)
         val oneHandedModSwitch = getInstance().keyboardSetting.oneHandedModSwitch.getValue()
@@ -189,6 +216,21 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
             updateCandidateBar()
             (KeyboardManager.instance.currentContainer as? CandidatesContainer)?.showCandidatesView()
         }
+    }
+
+
+    private fun updateSkbRootTopAnchor(topViewId: Int) {
+        val lp = mSkbRoot.layoutParams as LayoutParams
+        lp.removeRule(ABOVE)
+        if (topViewId != View.NO_ID) {
+            lp.addRule(BELOW, topViewId)
+            lp.removeRule(ALIGN_PARENT_TOP)
+        } else {
+            lp.removeRule(BELOW)
+            lp.addRule(ALIGN_PARENT_TOP)
+        }
+        mSkbRoot.layoutParams = lp
+        requestLayout()
     }
 
     private var initialTouchX = 0f
@@ -254,6 +296,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
         val backgrounde = ThemeManager.activeTheme.backgroundDrawable(ThemeManager.prefs.keyBorder.getValue())
         mSkbRoot.background = if(backgrounde is BitmapDrawable) backgrounde.bitmap.scale(EnvironmentSingleton.instance.skbWidth, EnvironmentSingleton.instance.inputAreaHeight).toDrawable(context.resources) else backgrounde
         mSkbCandidatesBarView.updateTheme(keyTextColor)
+        mAiAssistLayout.updateTheme(ThemeManager.activeTheme)
         if(::mOnehandHoderLayout.isInitialized) {
             (mOnehandHoderLayout[0] as ImageButton).drawable?.setTint(keyTextColor)
             (mOnehandHoderLayout[1] as ImageButton).drawable?.setTint(keyTextColor)
@@ -383,6 +426,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
                 if(lastTest?.isNotEmpty() == true) commitText(lastTest)
             }
             PopupMenuMode.Enter ->  commitText("\n") // 长按回车键
+            PopupMenuMode.AiAssist -> triggerAiAssist()
             else -> {}
         }
         if(result.first == PopupMenuMode.Text && mImeState != ImeState.STATE_PREDICT) mImeState = ImeState.STATE_PREDICT
@@ -545,6 +589,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
                 (KeyboardManager.instance.currentContainer as? T9TextContainer)?.updateSymbolListView()
                 mImeState = ImeState.STATE_PREDICT
                 commitDecInfoText(choice)
+                maybeTriggerAiAssistAfterCommit()
             } else {  // 不上屏，继续选择
                 if (!DecodingInfo.isFinish) {
                     if (InputModeSwitcherManager.isEnglish) setComposingText(DecodingInfo.composingStrForCommit)
@@ -623,6 +668,10 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
     }
 
     fun onSettingsMenuClick(skbMenuMode: SkbMenuMode, extra:Phrase? = null) {
+        if (skbMenuMode != SkbMenuMode.AiAssist && isAiAssist) {
+            isAiAssist = false
+            initView(context)
+        }
         when (skbMenuMode) {
             SkbMenuMode.AddPhrases -> {
                 isAddPhrases = true
@@ -682,6 +731,8 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
                     onSettingsMenuClick(SkbMenuMode.Phrases)
                 }
             }
+        } else if(isAiAssist) {
+            mAiAssistLayout.sendKeyEvent(keyCode)
         } else if(keyCode == KeyEvent.KEYCODE_ENTER) {
             service.sendEnterKeyEvent()
         } else if(keyCode in KeyEvent.KEYCODE_DPAD_UP..KeyEvent.KEYCODE_DPAD_RIGHT) {
@@ -696,7 +747,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
      * 向输入框提交预选词
      */
     private fun setComposingText(text: CharSequence) {
-        if(!isAddPhrases)service.setComposingText(text)
+        if(!isAddPhrases && !isAiAssist)service.setComposingText(text)
     }
 
     /**
@@ -704,6 +755,7 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
      */
     private fun commitText(text: String) {
         if(isAddPhrases) mAddPhrasesLayout.commitText(text)
+        else if(isAiAssist) mAiAssistLayout.commitText(text)
         else service.commitText(StringUtils.converted2FlowerTypeface(text))
     }
 
@@ -802,6 +854,10 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
             mAddPhrasesLayout.addPhrasesHandle()
             initView(context)
         }
+        if(isAiAssist){
+            isAiAssist = false
+            initView(context)
+        }
         KeyboardManager.instance.switchKeyboard()
         if(mImeState != ImeState.STATE_IDLE) resetToIdleState()
     }
@@ -838,4 +894,40 @@ class InputView(context: Context, service: ImeService) : LifecycleRelativeLayout
             }
         }
     }
+
+    private fun maybeTriggerAiAssistAfterCommit() {
+        if (!getInstance().input.aiAssistEnabled.getValue()) return
+        if (!getInstance().input.aiAutoOnSelect.getValue()) return
+        triggerAiAssist()
+    }
+
+    fun triggerAiAssist(
+        seedText: String? = null,
+        modeOverride: AiTextService.AssistMode? = null,
+        roleOverride: AiAssistRole? = null,
+    ) {
+        if (!getInstance().input.aiAssistEnabled.getValue()) {
+            context.toast("请先在设置中开启AI功能")
+            return
+        }
+        val textBefore = seedText ?: service.getTextBeforeCursor(200)
+        ThreadPoolUtils.execute(Runnable {
+            val mode = modeOverride ?: AiTextService.AssistMode.fromRaw(getInstance().input.aiAssistMode.getValue().name)
+            val result = AiTextService.get().complete(
+                AiTextService.CompletionRequest(
+                    textBeforeCursor = textBefore,
+                    mode = mode,
+                    role = roleOverride,
+                )
+            )
+            post {
+                if (result.ok && result.text.isNotBlank()) {
+                    commitText(result.text)
+                } else {
+                    context.toast(result.errorMessage ?: "AI请求失败")
+                }
+            }
+        })
+    }
+
 }

@@ -145,6 +145,12 @@ fun onSettingsMenuClick(inputView: InputView, skbMenuMode: SkbMenuMode) {
                 if(InputModeSwitcherManager.isTextEditSkb) InputModeSwitcherManager.USER_DEF_KEYCODE_RETURN_6
                 else InputModeSwitcherManager.USER_DEF_KEYCODE_TEXTEDIT_7)
         }
+        SkbMenuMode.AiAssist -> {
+            inputView.isAiAssist = true
+            KeyboardManager.instance.switchKeyboard(InputModeSwitcherManager.skbImeLayout)
+            inputView.initView(inputView.context)
+            inputView.updateCandidateBar()
+        }
         else ->{}
     }
 }

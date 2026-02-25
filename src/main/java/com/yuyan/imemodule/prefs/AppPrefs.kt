@@ -11,6 +11,8 @@ import com.yuyan.imemodule.application.Launcher
 import com.yuyan.imemodule.application.CustomConstant
 import com.yuyan.imemodule.manager.InputModeSwitcherManager
 import com.yuyan.imemodule.prefs.behavior.ClipboardLayoutMode
+import com.yuyan.imemodule.prefs.behavior.AiAssistMode
+import com.yuyan.imemodule.prefs.behavior.AiAssistRole
 import com.yuyan.imemodule.prefs.behavior.DoublePinyinSchemaMode
 import com.yuyan.imemodule.prefs.behavior.FullDisplayCenterMode
 import com.yuyan.imemodule.prefs.behavior.FullDisplayKeyMode
@@ -113,6 +115,89 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val symbolPairInput = switch(
             R.string.symbol_pair_input, "symbol_pair_input_enable", true
         )
+
+        val titleAi = category(R.string.ai_assist_setting)
+
+        val aiAssistEnabled = switch(
+            R.string.ai_assist_enable, "ai_assist_enable", false,
+            R.string.ai_assist_enable_tips
+        )
+
+        val aiUseMock = switch(
+            R.string.ai_assist_use_mock, "ai_assist_use_mock", true
+        ) { aiAssistEnabled.getValue() }
+
+        val aiAutoOnSelect = switch(
+            R.string.ai_assist_auto_on_select, "ai_assist_auto_on_select", false
+        ) { aiAssistEnabled.getValue() }
+
+        val aiAssistMode = list(
+            R.string.ai_assist_mode,
+            "ai_assist_mode",
+            AiAssistMode.Continue,
+            AiAssistMode,
+            listOf(AiAssistMode.Continue, AiAssistMode.Polish, AiAssistMode.Expand, AiAssistMode.Formal),
+            listOf(
+                R.string.ai_assist_mode_continue,
+                R.string.ai_assist_mode_polish,
+                R.string.ai_assist_mode_expand,
+                R.string.ai_assist_mode_formal,
+            )
+        ) { aiAssistEnabled.getValue() }
+
+        val aiAssistRole = list(
+            R.string.ai_assist_role,
+            "ai_assist_role",
+            AiAssistRole.Default,
+            AiAssistRole,
+            listOf(
+                AiAssistRole.Default,
+                AiAssistRole.HighEq,
+                AiAssistRole.LoveGuru,
+                AiAssistRole.Workplace,
+                AiAssistRole.SocialMedia,
+            ),
+            listOf(
+                R.string.ai_assist_role_default,
+                R.string.ai_assist_role_high_eq,
+                R.string.ai_assist_role_love_guru,
+                R.string.ai_assist_role_workplace,
+                R.string.ai_assist_role_social_media,
+            )
+        ) { aiAssistEnabled.getValue() }
+
+        val aiModel = com.yuyan.imemodule.view.preference.ManagedPreference.PString(sharedPreferences, "ai_assist_model", "gpt-4o-mini")
+            .also { pref ->
+                pref.register()
+                com.yuyan.imemodule.prefs.ManagedPreferenceUi.EditTextString(
+                    R.string.ai_assist_model,
+                    "ai_assist_model",
+                    "gpt-4o-mini",
+                    R.string.ai_assist_model_hint
+                ) { aiAssistEnabled.getValue() && !aiUseMock.getValue() }.registerUi()
+            }
+
+        val aiEndpoint = com.yuyan.imemodule.view.preference.ManagedPreference.PString(sharedPreferences, "ai_assist_endpoint", "")
+            .also { pref ->
+                pref.register()
+                com.yuyan.imemodule.prefs.ManagedPreferenceUi.EditTextString(
+                    R.string.ai_assist_endpoint,
+                    "ai_assist_endpoint",
+                    "",
+                    R.string.ai_assist_endpoint_hint
+                ) { aiAssistEnabled.getValue() && !aiUseMock.getValue() }.registerUi()
+            }
+
+        val aiApiKey = com.yuyan.imemodule.view.preference.ManagedPreference.PString(sharedPreferences, "ai_assist_api_key", "")
+            .also { pref ->
+                pref.register()
+                com.yuyan.imemodule.prefs.ManagedPreferenceUi.EditTextString(
+                    R.string.ai_assist_api_key,
+                    "ai_assist_api_key",
+                    "",
+                    R.string.ai_assist_api_key_hint
+                ) { aiAssistEnabled.getValue() && !aiUseMock.getValue() }.registerUi()
+            }
     }
 
     inner class KeyboardSetting : ManagedPreferenceCategory(R.string.setting_ime_keyboard, sharedPreferences) {

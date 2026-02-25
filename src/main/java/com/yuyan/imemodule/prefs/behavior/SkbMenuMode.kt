@@ -35,7 +35,8 @@ enum class SkbMenuMode {
     Emojicon,
     Emoticon,
     LockClipBoard,
-    TextEdit;
+    TextEdit,
+    AiAssist;
 
     companion object : ManagedPreference.StringLikeCodec<SkbMenuMode> {
         override fun decode(raw: String): SkbMenuMode =
